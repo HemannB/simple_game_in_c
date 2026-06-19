@@ -1,0 +1,41 @@
+# Build output
+build/
+bin/
+out/
+
+# Compiled objects
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+
+# Executables
+*.exe
+game
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Dependencies
+vcpkg_installed/
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.user
+*.ncb
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.VC.opendb
+
+# OS
+.DS_Store
+Thumbs.db
