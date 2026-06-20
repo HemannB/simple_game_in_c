@@ -5,17 +5,19 @@
 #include "tetromino.h"
 
 // DEFINIÇÕES DO GAME
-#define WINDOW_TITLE    "TETRIS"
-#define WINDOW_WIDTH    (GRID_X_OFFSET * 2 + GRID_COLS * CELL_SIZE)
-#define WINDOW_HEIGHT   (GRID_Y_OFFSET * 2 + GRID_ROWS * CELL_SIZE)
-#define TARGET_FPS      60
-#define MS_PER_FRAME    (1000 / TARGET_FPS)
+#define WINDOW_TITLE     "TETRIS"
+#define WINDOW_WIDTH     (GRID_X_OFFSET * 2 + GRID_COLS * CELL_SIZE)
+#define WINDOW_HEIGHT    (GRID_Y_OFFSET * 2 + GRID_ROWS * CELL_SIZE)
+#define TARGET_FPS       60
+#define MS_PER_FRAME     (1000 / TARGET_FPS)
+#define GRAVITY_INTERVAL 1.0f
 
 // GAME STATE
 typedef struct {
-    int running;
-    Grid grid;
-    Tetromino current;
+    int         running;
+    Grid        grid;
+    Tetromino   current;
+    float       gravity_acc;
 }GameState;
 
 // MANIPULADOR DE EVENTOS
@@ -38,6 +40,7 @@ static void handle_events(GameState *gs) {
                 break;
                 case SDLK_DOWN:
                     tetromino_move_down(&gs->current, &gs->grid);
+                    gs->gravity_acc = 0.0f;
                 break;
                 case SDLK_UP:
                 case SDLK_z:
@@ -52,8 +55,11 @@ static void handle_events(GameState *gs) {
 
 // UPDATE
 static void update(GameState *gs, float dt) {
-    (void)gs;
-    (void)dt;
+    gs->gravity_acc += dt;
+    if (gs->gravity_acc >= GRAVITY_INTERVAL) {
+        tetromino_move_down(&gs->current, &gs->grid);
+        gs->gravity_acc = 0.0f;
+    }
 }
 
 // RENDER
