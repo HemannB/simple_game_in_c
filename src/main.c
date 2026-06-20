@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "grid.h"
+#include "tetromino.h"
 
 // DEFINIÇÕES DO GAME
 #define WINDOW_TITLE    "TETRIS"
@@ -14,6 +15,7 @@
 typedef struct {
     int running;
     Grid grid;
+    Tetromino current;
 }GameState;
 
 // MANIPULADOR DE EVENTOS
@@ -39,6 +41,7 @@ static void render(SDL_Renderer *renderer, const GameState *gs) {
     SDL_RenderClear(renderer);
 
     grid_render(&gs->grid, renderer);
+    tetromino_render(&gs->current, renderer);
 
     SDL_RenderPresent(renderer);
 }
@@ -68,11 +71,13 @@ int main(void) {
         );
     if (!renderer) {
         fprintf(stderr, "SDL_CreateRenderer falhou %s\n", SDL_GetError());
+        SDL_DestroyWindow(window);
         SDL_Quit();
         return EXIT_FAILURE;
     }
     GameState gs = { .running = 1};
     grid_init(&gs.grid);
+    tetromino_spawn(&gs.current);
 
     Uint64 last = SDL_GetTicks64();
 

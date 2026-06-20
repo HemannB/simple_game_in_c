@@ -13,6 +13,7 @@ find_package(SDL2 REQUIRED)
 add_executable(tetris
         src/main.c
         src/grid.c
+        src/tetromino.c
 )
 
 target_include_directories(tetris PRIVATE ${SDL2_INCLUDE_DIRS})
