@@ -94,3 +94,49 @@ void tetromino_render(const Tetromino *t, SDL_Renderer *renderer) {
     }
   }
 }
+
+int tetromino_is_valid(const Tetromino *t, const Grid *g, int row, int col, int rotation){
+  for (int r = 0; r < PIECE_SIZE; r++) {
+    for (int c = 0; c < PIECE_SIZE; c++) {
+      if (!PIECES[t->piece_idx][rotation][r][c])
+        continue;
+      int gr = row + r;
+      int gc = col + c;
+      if (gc < 0 || gc >= GRID_COLS || gr >= GRID_ROWS)
+        return 0;
+      if (gr < 0)
+        continue;
+      if (g->cells[gr][gc] != 0)
+        return 0;
+    }
+  }
+  return 1;
+}
+
+void tetromino_move_left(Tetromino *t, const Grid *g) {
+  if (tetromino_is_valid(t, g, t->row, t->col - 1, t->rotation))
+    t->col--;
+}
+void tetromino_move_right(Tetromino *t, const Grid *g) {
+  if (tetromino_is_valid(t, g, t->row, t->col + 1, t->rotation))
+    t->col++;
+}
+void tetromino_move_down(Tetromino *t, const Grid *g) {
+  if (tetromino_is_valid(t, g, t->row + 1, t->col, t->rotation))
+    t->row++;
+}
+void tetromino_rotate(Tetromino *t, const Grid *g) {
+  int next_rot = (t->rotation + 1) % NUM_ROTATIONS;
+  if (tetromino_is_valid(t,g,t->row, t->col, next_rot)) {
+    t->rotation = next_rot;
+    return;
+  }
+  int kicks[] = { 1, -1, 2, -2};
+  for (int i = 0; i < NUM_ROTATIONS; i++) {
+    if (tetromino_is_valid(t,g,t->row, t->col + kicks[i], next_rot)) {
+      t->col      += kicks[i];
+      t->rotation  = next_rot;
+      return;
+    }
+  }
+}

@@ -24,8 +24,29 @@ static void handle_events(GameState *gs) {
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT)
             gs->running = 0;
-        if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)
-            gs->running = 0;
+
+        if (event.type == SDL_KEYDOWN) {
+            switch (event.key.keysym.sym) {
+                case SDLK_ESCAPE:
+                    gs->running = 0;
+                break;
+                case SDLK_LEFT:
+                    tetromino_move_left(&gs->current, &gs->grid);
+                break;
+                case SDLK_RIGHT:
+                    tetromino_move_right(&gs->current, &gs->grid);
+                break;
+                case SDLK_DOWN:
+                    tetromino_move_down(&gs->current, &gs->grid);
+                break;
+                case SDLK_UP:
+                case SDLK_z:
+                    tetromino_rotate (&gs->current, &gs->grid);
+                break;
+                default:
+                break;
+            }
+        }
     }
 }
 
