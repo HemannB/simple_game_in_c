@@ -11,7 +11,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 find_package(SDL2 REQUIRED)
 
 add_executable(tetris
-    src/main.c
+        src/main.c
+        src/grid.c
 )
 
 target_include_directories(tetris PRIVATE ${SDL2_INCLUDE_DIRS})
