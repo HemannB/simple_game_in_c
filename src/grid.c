@@ -17,9 +17,9 @@ void grid_render(const Grid *g, SDL_Renderer *renderer)
 
             if (g->cells[row][col] == 0) {
                 SDL_SetRenderDrawColor(renderer, 25, 25, 35, 255);
-                SDL_SetRenderFillRect(renderer, &cell);
+                SDL_RenderFillRect(renderer, &cell);
 
-                SDL_SetRendererDrawColor(renderer, 40, 40, 55, 255);
+                SDL_SetRenderDrawColor(renderer, 40, 40, 55, 255);
                 SDL_RenderDrawRect(renderer, &cell);
             } else {
                 SDL_SetRenderDrawColor(renderer, 180, 180, 180, 255);
