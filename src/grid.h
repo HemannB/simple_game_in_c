@@ -16,4 +16,6 @@ typedef struct {
 void grid_init(Grid *g);
 void grid_render(const Grid *g, SDL_Renderer *renderer);
 
+int grid_clear_lines(Grid *g);
+
 #endif /* GRID_H */

@@ -61,6 +61,7 @@ static void update(GameState *gs, float dt) {
 
         if (!tetromino_move_down(&gs->current, &gs->grid)) {
             tetromino_lock(&gs->current, &gs->grid);
+            grid_clear_lines(&gs->grid);
             tetromino_spawn(&gs->current);
         }
     }

@@ -24,7 +24,6 @@ void grid_render(const Grid *g, SDL_Renderer *renderer)
                 SDL_RenderDrawRect(renderer, &cell);
             } else {
                 int idx = g->cells[row][col] - 1;
-
                 const SDL_Color *c = &PIECE_COLORS[idx];
 
                 SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, c->a);
@@ -48,4 +47,26 @@ void grid_render(const Grid *g, SDL_Renderer *renderer)
     };
     SDL_SetRenderDrawColor(renderer, 100, 100, 120, 255);
     SDL_RenderDrawRect(renderer, &border);
+}
+
+int grid_clear_lines(Grid *g) {
+    int cleared = 0;
+    for (int row = GRID_ROWS - 1; row >= 0; row--) {
+        int full = 1;
+        for (int col = 0; col < GRID_COLS; col++) {
+            if (g->cells[row][col] == 0) {
+                full = 0;
+                break;
+            }
+        }
+        if (!full)
+            continue;
+        for (int r = row; r > 0; r--)
+            memcpy(g->cells[r],g->cells[r - 1], sizeof(g->cells[r]));
+        memset(g->cells[0],0, sizeof(g->cells[0]));
+
+        cleared++;
+        row++;
+    }
+    return cleared;
 }
