@@ -1,9 +1,11 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "grid.h"
 #include "tetromino.h"
 #include "ui.h"
+#include "audio.h"
 
 // DEFINIÇÕES DO GAME
 #define WINDOW_TITLE  "TETRIS"
@@ -15,7 +17,7 @@
 // Score table: pontos para 1, 2, 3, 4 linhas (Tetris original Nintendo)
 static const int SCORE_TABLE[5] = { 0, 40, 100, 300, 1200 };
 
-// Intervalo de gravidade por nível (segundos) acelera a cada nível
+// Intervalo de gravidade por nível (segundos)
 static float gravity_for_level(int level)
 {
     if (level >= 10) return 0.05f;
@@ -126,7 +128,7 @@ static void render(SDL_Renderer *renderer, const GameState *gs, const UI *ui) {
 int main(void) {
     srand((unsigned int)time(NULL));
 
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
         fprintf(stderr, "SDL_Init falhou %s\n", SDL_GetError());
         return EXIT_FAILURE;
     }
@@ -137,6 +139,13 @@ int main(void) {
         return EXIT_FAILURE;
     }
 
+    Audio audio;
+    if (!audio_init(&audio)) {
+        fprintf(stderr, "Audio init falhou, continuando sem música\n");
+    } else {
+        audio_play_music(&audio);
+    }
+
     SDL_Window *window = SDL_CreateWindow(
         WINDOW_TITLE,
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -145,6 +154,7 @@ int main(void) {
     );
     if (!window) {
         fprintf(stderr, "SDL_CreateWindow falhou %s\n", SDL_GetError());
+        audio_destroy(&audio);
         ui_destroy(&ui);
         SDL_Quit();
         return EXIT_FAILURE;
@@ -157,6 +167,7 @@ int main(void) {
     if (!renderer) {
         fprintf(stderr, "SDL_CreateRenderer falhou %s\n", SDL_GetError());
         SDL_DestroyWindow(window);
+        audio_destroy(&audio);
         ui_destroy(&ui);
         SDL_Quit();
         return EXIT_FAILURE;
@@ -191,6 +202,7 @@ int main(void) {
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    audio_destroy(&audio);
     ui_destroy(&ui);
     SDL_Quit();
     return EXIT_SUCCESS;

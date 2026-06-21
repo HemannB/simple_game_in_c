@@ -14,10 +14,11 @@ add_executable(tetris
         src/grid.c
         src/tetromino.c
         src/ui.c
+        src/audio.c
 )
 
 target_include_directories(tetris PRIVATE ${SDL2_INCLUDE_DIRS})
-target_link_libraries(tetris PRIVATE ${SDL2_LIBRARIES} SDL2_ttf)
+target_link_libraries(tetris PRIVATE ${SDL2_LIBRARIES} SDL2_ttf SDL2_mixer)
 
 target_compile_options(tetris PRIVATE
         $<$<C_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
