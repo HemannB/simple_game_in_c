@@ -3,22 +3,39 @@
 #include <stdlib.h>
 #include "grid.h"
 #include "tetromino.h"
+#include "ui.h"
 
 // DEFINIÇÕES DO GAME
-#define WINDOW_TITLE     "TETRIS"
-#define WINDOW_WIDTH     (GRID_X_OFFSET * 2 + GRID_COLS * CELL_SIZE)
-#define WINDOW_HEIGHT    (GRID_Y_OFFSET * 2 + GRID_ROWS * CELL_SIZE)
-#define TARGET_FPS       60
-#define MS_PER_FRAME     (1000 / TARGET_FPS)
-#define GRAVITY_INTERVAL 1.0f
+#define WINDOW_TITLE  "TETRIS"
+#define WINDOW_WIDTH  (GRID_X_OFFSET * 2 + GRID_COLS * CELL_SIZE + 160)
+#define WINDOW_HEIGHT (GRID_Y_OFFSET * 2 + GRID_ROWS * CELL_SIZE)
+#define TARGET_FPS    60
+#define MS_PER_FRAME  (1000 / TARGET_FPS)
+
+// Score table: pontos para 1, 2, 3, 4 linhas (Tetris original Nintendo)
+static const int SCORE_TABLE[5] = { 0, 40, 100, 300, 1200 };
+
+// Intervalo de gravidade por nível (segundos) acelera a cada nível
+static float gravity_for_level(int level)
+{
+    if (level >= 10) return 0.05f;
+    float intervals[] = {
+        1.00f, 0.85f, 0.72f, 0.60f, 0.50f,
+        0.42f, 0.35f, 0.28f, 0.22f, 0.17f
+    };
+    return intervals[level];
+}
 
 // GAME STATE
 typedef struct {
-    int         running;
-    Grid        grid;
-    Tetromino   current;
-    float       gravity_acc;
-}GameState;
+    int       running;
+    Grid      grid;
+    Tetromino current;
+    float     gravity_acc;
+    int       score;
+    int       level;
+    int       lines_cleared;
+} GameState;
 
 // MANIPULADOR DE EVENTOS
 static void handle_events(GameState *gs) {
@@ -44,7 +61,7 @@ static void handle_events(GameState *gs) {
                 break;
                 case SDLK_UP:
                 case SDLK_z:
-                    tetromino_rotate (&gs->current, &gs->grid);
+                    tetromino_rotate(&gs->current, &gs->grid);
                 break;
                 default:
                 break;
@@ -56,32 +73,67 @@ static void handle_events(GameState *gs) {
 // UPDATE
 static void update(GameState *gs, float dt) {
     gs->gravity_acc += dt;
-    if (gs->gravity_acc >= GRAVITY_INTERVAL) {
+
+    if (gs->gravity_acc >= gravity_for_level(gs->level)) {
         gs->gravity_acc = 0.0f;
 
         if (!tetromino_move_down(&gs->current, &gs->grid)) {
             tetromino_lock(&gs->current, &gs->grid);
-            grid_clear_lines(&gs->grid);
+
+            int cleared = grid_clear_lines(&gs->grid);
+            if (cleared > 0) {
+                gs->score         += SCORE_TABLE[cleared] * (gs->level + 1);
+                gs->lines_cleared += cleared;
+                gs->level          = gs->lines_cleared / 10;
+            }
+
             tetromino_spawn(&gs->current);
         }
     }
 }
 
 // RENDER
-static void render(SDL_Renderer *renderer, const GameState *gs) {
+static void render(SDL_Renderer *renderer, const GameState *gs, const UI *ui) {
     SDL_SetRenderDrawColor(renderer, 15, 15, 20, 255);
     SDL_RenderClear(renderer);
 
     grid_render(&gs->grid, renderer);
     tetromino_render(&gs->current, renderer);
 
+    // sidebar
+    int sx = GRID_X_OFFSET * 2 + GRID_COLS * CELL_SIZE + 10;
+    SDL_Color white  = { 255, 255, 255, 255 };
+    SDL_Color yellow = { 240, 240,   0, 255 };
+
+    char buf[64];
+
+    ui_draw_text(ui, renderer, "SCORE",  sx, 30,  white);
+    snprintf(buf, sizeof(buf), "%d", gs->score);
+    ui_draw_text(ui, renderer, buf,      sx, 55,  yellow);
+
+    ui_draw_text(ui, renderer, "LEVEL",  sx, 100, white);
+    snprintf(buf, sizeof(buf), "%d", gs->level + 1);
+    ui_draw_text(ui, renderer, buf,      sx, 125, yellow);
+
+    ui_draw_text(ui, renderer, "LINES",  sx, 170, white);
+    snprintf(buf, sizeof(buf), "%d", gs->lines_cleared);
+    ui_draw_text(ui, renderer, buf,      sx, 195, yellow);
+
     SDL_RenderPresent(renderer);
 }
 
 // MAIN GAME
 int main(void) {
+    srand((unsigned int)time(NULL));
+
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         fprintf(stderr, "SDL_Init falhou %s\n", SDL_GetError());
+        return EXIT_FAILURE;
+    }
+
+    UI ui;
+    if (!ui_init(&ui)) {
+        SDL_Quit();
         return EXIT_FAILURE;
     }
 
@@ -93,35 +145,44 @@ int main(void) {
     );
     if (!window) {
         fprintf(stderr, "SDL_CreateWindow falhou %s\n", SDL_GetError());
+        ui_destroy(&ui);
         SDL_Quit();
         return EXIT_FAILURE;
     }
 
-    SDL_Renderer *renderer = SDL_CreateRenderer (
+    SDL_Renderer *renderer = SDL_CreateRenderer(
         window, -1,
         SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
-        );
+    );
     if (!renderer) {
         fprintf(stderr, "SDL_CreateRenderer falhou %s\n", SDL_GetError());
         SDL_DestroyWindow(window);
+        ui_destroy(&ui);
         SDL_Quit();
         return EXIT_FAILURE;
     }
-    GameState gs = { .running = 1};
+
+    GameState gs = {
+        .running       = 1,
+        .gravity_acc   = 0.0f,
+        .score         = 0,
+        .level         = 0,
+        .lines_cleared = 0
+    };
     grid_init(&gs.grid);
     tetromino_spawn(&gs.current);
 
     Uint64 last = SDL_GetTicks64();
 
     while (gs.running) {
-        Uint64 now          = SDL_GetTicks64();
-        Uint64 elapsed      = now - last;
-        float dt            = (float)elapsed / 1000.0f;
-        last                = now;
+        Uint64 now        = SDL_GetTicks64();
+        Uint64 elapsed    = now - last;
+        float  dt         = (float)elapsed / 1000.0f;
+        last              = now;
 
-        handle_events (&gs);
+        handle_events(&gs);
         update(&gs, dt);
-        render(renderer, &gs);
+        render(renderer, &gs, &ui);
 
         Uint64 frame_time = SDL_GetTicks64() - now;
         if (frame_time < MS_PER_FRAME)
@@ -130,6 +191,7 @@ int main(void) {
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    ui_destroy(&ui);
     SDL_Quit();
     return EXIT_SUCCESS;
 }
