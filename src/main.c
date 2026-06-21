@@ -31,6 +31,7 @@ static float gravity_for_level(int level)
 // GAME STATE
 typedef struct {
     int       running;
+    int       game_over;
     Grid      grid;
     Tetromino current;
     Tetromino next;
@@ -40,13 +41,33 @@ typedef struct {
     int       lines_cleared;
 } GameState;
 
-// Inicializa current e next
-static void spawn_next(GameState *gs)
+// Inicializa/reinicia o estado do jogo
+static void game_init(GameState *gs)
 {
-    gs->current        = gs->next;
-    gs->current.col    = GRID_COLS / 2 - PIECE_SIZE / 2;
-    gs->current.row    = 0;
+    gs->game_over     = 0;
+    gs->gravity_acc   = 0.0f;
+    gs->score         = 0;
+    gs->level         = 0;
+    gs->lines_cleared = 0;
+    grid_init(&gs->grid);
     tetromino_spawn(&gs->next);
+}
+
+// next vira current, sorteia novo next; retorna 0 se game over
+static int spawn_next(GameState *gs)
+{
+    gs->current     = gs->next;
+    gs->current.col = GRID_COLS / 2 - PIECE_SIZE / 2;
+    gs->current.row = 0;
+    tetromino_spawn(&gs->next);
+
+    // se a posição inicial já está bloqueada, game over
+    if (!tetromino_is_valid(&gs->current, &gs->grid,
+                             gs->current.row, gs->current.col,
+                             gs->current.rotation))
+        return 0;
+
+    return 1;
 }
 
 // MANIPULADOR DE EVENTOS
@@ -61,19 +82,28 @@ static void handle_events(GameState *gs) {
                 case SDLK_ESCAPE:
                     gs->running = 0;
                 break;
+                case SDLK_r:
+                    if (gs->game_over)
+                        game_init(gs);
+                break;
                 case SDLK_LEFT:
-                    tetromino_move_left(&gs->current, &gs->grid);
+                    if (!gs->game_over)
+                        tetromino_move_left(&gs->current, &gs->grid);
                 break;
                 case SDLK_RIGHT:
-                    tetromino_move_right(&gs->current, &gs->grid);
+                    if (!gs->game_over)
+                        tetromino_move_right(&gs->current, &gs->grid);
                 break;
                 case SDLK_DOWN:
-                    tetromino_move_down(&gs->current, &gs->grid);
-                    gs->gravity_acc = 0.0f;
+                    if (!gs->game_over) {
+                        tetromino_move_down(&gs->current, &gs->grid);
+                        gs->gravity_acc = 0.0f;
+                    }
                 break;
                 case SDLK_UP:
                 case SDLK_z:
-                    tetromino_rotate(&gs->current, &gs->grid);
+                    if (!gs->game_over)
+                        tetromino_rotate(&gs->current, &gs->grid);
                 break;
                 default:
                 break;
@@ -84,6 +114,9 @@ static void handle_events(GameState *gs) {
 
 // UPDATE
 static void update(GameState *gs, float dt) {
+    if (gs->game_over)
+        return;
+
     gs->gravity_acc += dt;
 
     if (gs->gravity_acc >= gravity_for_level(gs->level)) {
@@ -99,7 +132,8 @@ static void update(GameState *gs, float dt) {
                 gs->level          = gs->lines_cleared / 10;
             }
 
-            spawn_next(gs);
+            if (!spawn_next(gs))
+                gs->game_over = 1;
         }
     }
 }
@@ -138,12 +172,15 @@ static void render(SDL_Renderer *renderer, const GameState *gs, const UI *ui) {
     SDL_RenderClear(renderer);
 
     grid_render(&gs->grid, renderer);
-    tetromino_render(&gs->current, renderer);
+
+    if (!gs->game_over)
+        tetromino_render(&gs->current, renderer);
 
     // sidebar
     int sx = GRID_X_OFFSET * 2 + GRID_COLS * CELL_SIZE + 10;
     SDL_Color white  = { 255, 255, 255, 255 };
     SDL_Color yellow = { 240, 240,   0, 255 };
+    SDL_Color red    = { 240,  50,  50, 255 };
 
     char buf[64];
 
@@ -159,8 +196,14 @@ static void render(SDL_Renderer *renderer, const GameState *gs, const UI *ui) {
     snprintf(buf, sizeof(buf), "%d", gs->lines_cleared);
     ui_draw_text(ui, renderer, buf,      sx, 195, yellow);
 
-    ui_draw_text(ui, renderer, "NEXT",   sx, 250, white);
-    render_next(&gs->next, renderer, sx, 275);
+    if (gs->game_over) {
+        ui_draw_text(ui, renderer, "GAME",   sx, 300, red);
+        ui_draw_text(ui, renderer, "OVER",   sx, 325, red);
+        ui_draw_text(ui, renderer, "R:reset",sx, 365, white);
+    } else {
+        ui_draw_text(ui, renderer, "NEXT",   sx, 250, white);
+        render_next(&gs->next, renderer, sx, 275);
+    }
 
     SDL_RenderPresent(renderer);
 }
@@ -214,16 +257,9 @@ int main(void) {
         return EXIT_FAILURE;
     }
 
-    GameState gs = {
-        .running       = 1,
-        .gravity_acc   = 0.0f,
-        .score         = 0,
-        .level         = 0,
-        .lines_cleared = 0
-    };
-    grid_init(&gs.grid);
-    tetromino_spawn(&gs.next);   /* sorteia o primeiro "next" */
-    spawn_next(&gs);             /* next vira current, sorteia novo next */
+    GameState gs = { .running = 1 };
+    game_init(&gs);
+    spawn_next(&gs);
 
     Uint64 last = SDL_GetTicks64();
 
