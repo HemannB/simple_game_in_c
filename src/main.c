@@ -61,13 +61,21 @@ static int spawn_next(GameState *gs)
     gs->current.row = 0;
     tetromino_spawn(&gs->next);
 
-    // se a posição inicial já está bloqueada, game over
     if (!tetromino_is_valid(&gs->current, &gs->grid,
                              gs->current.row, gs->current.col,
                              gs->current.rotation))
         return 0;
 
     return 1;
+}
+
+// Calcula a posição do ghost — dropa a peça atual sem alterar o estado
+static Tetromino compute_ghost(const Tetromino *t, const Grid *g)
+{
+    Tetromino ghost = *t;
+    while (tetromino_is_valid(&ghost, g, ghost.row + 1, ghost.col, ghost.rotation))
+        ghost.row++;
+    return ghost;
 }
 
 // MANIPULADOR DE EVENTOS
@@ -83,8 +91,10 @@ static void handle_events(GameState *gs) {
                     gs->running = 0;
                 break;
                 case SDLK_r:
-                    if (gs->game_over)
+                    if (gs->game_over) {
                         game_init(gs);
+                        spawn_next(gs);
+                    }
                 break;
                 case SDLK_LEFT:
                     if (!gs->game_over)
@@ -138,6 +148,39 @@ static void update(GameState *gs, float dt) {
     }
 }
 
+// Renderiza o ghost piece (sombra translúcida)
+static void render_ghost(const Tetromino *ghost, SDL_Renderer *renderer)
+{
+    const SDL_Color *c = &PIECE_COLORS[ghost->piece_idx];
+
+    for (int r = 0; r < PIECE_SIZE; r++) {
+        for (int col = 0; col < PIECE_SIZE; col++) {
+            if (!PIECES[ghost->piece_idx][ghost->rotation][r][col])
+                continue;
+
+            int x = GRID_X_OFFSET + (ghost->col + col) * CELL_SIZE;
+            int y = GRID_Y_OFFSET + (ghost->row + r)   * CELL_SIZE;
+
+            SDL_Rect cell = { x, y, CELL_SIZE, CELL_SIZE };
+
+            /* cor bem escura da peça — apenas contorno */
+            SDL_SetRenderDrawColor(renderer,
+                (Uint8)(c->r * 0.25f),
+                (Uint8)(c->g * 0.25f),
+                (Uint8)(c->b * 0.25f),
+                255);
+            SDL_RenderFillRect(renderer, &cell);
+
+            SDL_SetRenderDrawColor(renderer,
+                (Uint8)(c->r * 0.5f),
+                (Uint8)(c->g * 0.5f),
+                (Uint8)(c->b * 0.5f),
+                255);
+            SDL_RenderDrawRect(renderer, &cell);
+        }
+    }
+}
+
 // Renderiza a próxima peça na sidebar
 static void render_next(const Tetromino *t, SDL_Renderer *renderer, int ox, int oy)
 {
@@ -173,8 +216,11 @@ static void render(SDL_Renderer *renderer, const GameState *gs, const UI *ui) {
 
     grid_render(&gs->grid, renderer);
 
-    if (!gs->game_over)
+    if (!gs->game_over) {
+        Tetromino ghost = compute_ghost(&gs->current, &gs->grid);
+        render_ghost(&ghost, renderer);
         tetromino_render(&gs->current, renderer);
+    }
 
     // sidebar
     int sx = GRID_X_OFFSET * 2 + GRID_COLS * CELL_SIZE + 10;
@@ -197,11 +243,11 @@ static void render(SDL_Renderer *renderer, const GameState *gs, const UI *ui) {
     ui_draw_text(ui, renderer, buf,      sx, 195, yellow);
 
     if (gs->game_over) {
-        ui_draw_text(ui, renderer, "GAME",   sx, 300, red);
-        ui_draw_text(ui, renderer, "OVER",   sx, 325, red);
-        ui_draw_text(ui, renderer, "R:reset",sx, 365, white);
+        ui_draw_text(ui, renderer, "GAME",    sx, 300, red);
+        ui_draw_text(ui, renderer, "OVER",    sx, 325, red);
+        ui_draw_text(ui, renderer, "R:reset", sx, 365, white);
     } else {
-        ui_draw_text(ui, renderer, "NEXT",   sx, 250, white);
+        ui_draw_text(ui, renderer, "NEXT",    sx, 250, white);
         render_next(&gs->next, renderer, sx, 275);
     }
 
