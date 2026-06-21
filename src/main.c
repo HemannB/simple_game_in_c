@@ -33,11 +33,21 @@ typedef struct {
     int       running;
     Grid      grid;
     Tetromino current;
+    Tetromino next;
     float     gravity_acc;
     int       score;
     int       level;
     int       lines_cleared;
 } GameState;
+
+// Inicializa current e next
+static void spawn_next(GameState *gs)
+{
+    gs->current        = gs->next;
+    gs->current.col    = GRID_COLS / 2 - PIECE_SIZE / 2;
+    gs->current.row    = 0;
+    tetromino_spawn(&gs->next);
+}
 
 // MANIPULADOR DE EVENTOS
 static void handle_events(GameState *gs) {
@@ -89,7 +99,35 @@ static void update(GameState *gs, float dt) {
                 gs->level          = gs->lines_cleared / 10;
             }
 
-            tetromino_spawn(&gs->current);
+            spawn_next(gs);
+        }
+    }
+}
+
+// Renderiza a próxima peça na sidebar
+static void render_next(const Tetromino *t, SDL_Renderer *renderer, int ox, int oy)
+{
+    const SDL_Color *c = &PIECE_COLORS[t->piece_idx];
+
+    for (int r = 0; r < PIECE_SIZE; r++) {
+        for (int col = 0; col < PIECE_SIZE; col++) {
+            if (!PIECES[t->piece_idx][t->rotation][r][col])
+                continue;
+
+            int x = ox + col * (CELL_SIZE - 4);
+            int y = oy + r   * (CELL_SIZE - 4);
+
+            SDL_Rect cell = { x, y, CELL_SIZE - 5, CELL_SIZE - 5 };
+
+            SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, c->a);
+            SDL_RenderFillRect(renderer, &cell);
+
+            SDL_SetRenderDrawColor(renderer,
+                (Uint8)(c->r * 0.6f),
+                (Uint8)(c->g * 0.6f),
+                (Uint8)(c->b * 0.6f),
+                255);
+            SDL_RenderDrawRect(renderer, &cell);
         }
     }
 }
@@ -120,6 +158,9 @@ static void render(SDL_Renderer *renderer, const GameState *gs, const UI *ui) {
     ui_draw_text(ui, renderer, "LINES",  sx, 170, white);
     snprintf(buf, sizeof(buf), "%d", gs->lines_cleared);
     ui_draw_text(ui, renderer, buf,      sx, 195, yellow);
+
+    ui_draw_text(ui, renderer, "NEXT",   sx, 250, white);
+    render_next(&gs->next, renderer, sx, 275);
 
     SDL_RenderPresent(renderer);
 }
@@ -181,7 +222,8 @@ int main(void) {
         .lines_cleared = 0
     };
     grid_init(&gs.grid);
-    tetromino_spawn(&gs.current);
+    tetromino_spawn(&gs.next);   /* sorteia o primeiro "next" */
+    spawn_next(&gs);             /* next vira current, sorteia novo next */
 
     Uint64 last = SDL_GetTicks64();
 
