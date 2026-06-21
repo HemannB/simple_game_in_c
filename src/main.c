@@ -57,8 +57,12 @@ static void handle_events(GameState *gs) {
 static void update(GameState *gs, float dt) {
     gs->gravity_acc += dt;
     if (gs->gravity_acc >= GRAVITY_INTERVAL) {
-        tetromino_move_down(&gs->current, &gs->grid);
         gs->gravity_acc = 0.0f;
+
+        if (!tetromino_move_down(&gs->current, &gs->grid)) {
+            tetromino_lock(&gs->current, &gs->grid);
+            tetromino_spawn(&gs->current);
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 #include "grid.h"
+#include "tetromino.h"
 #include "string.h"
 
 void grid_init(Grid *g)
@@ -10,8 +11,8 @@ void grid_render(const Grid *g, SDL_Renderer *renderer)
 {
     for (int row = 0; row < GRID_ROWS; row++) {
         for (int col = 0; col < GRID_COLS; col++) {
-            int x = GRID_X_OFFSET + col + CELL_SIZE;
-            int y = GRID_Y_OFFSET + row + CELL_SIZE;
+            int x = GRID_X_OFFSET + col * CELL_SIZE;
+            int y = GRID_Y_OFFSET + row * CELL_SIZE;
 
             SDL_Rect cell = { x, y, CELL_SIZE, CELL_SIZE };
 
@@ -22,10 +23,18 @@ void grid_render(const Grid *g, SDL_Renderer *renderer)
                 SDL_SetRenderDrawColor(renderer, 40, 40, 55, 255);
                 SDL_RenderDrawRect(renderer, &cell);
             } else {
-                SDL_SetRenderDrawColor(renderer, 180, 180, 180, 255);
+                int idx = g->cells[row][col] - 1;
+
+                const SDL_Color *c = &PIECE_COLORS[idx];
+
+                SDL_SetRenderDrawColor(renderer, c->r, c->g, c->b, c->a);
                 SDL_RenderFillRect(renderer, &cell);
 
-                SDL_SetRenderDrawColor(renderer, 100, 100 , 100, 255);
+                SDL_SetRenderDrawColor(renderer,
+                    (Uint8)(c->r * 0.6f),
+                    (Uint8)(c->g * 0.06f),
+                    (Uint8)(c->b * 0.06f),
+                    255);
                 SDL_RenderDrawRect(renderer, &cell);
             }
         }

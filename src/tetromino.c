@@ -121,9 +121,12 @@ void tetromino_move_right(Tetromino *t, const Grid *g) {
   if (tetromino_is_valid(t, g, t->row, t->col + 1, t->rotation))
     t->col++;
 }
-void tetromino_move_down(Tetromino *t, const Grid *g) {
-  if (tetromino_is_valid(t, g, t->row + 1, t->col, t->rotation))
+int tetromino_move_down(Tetromino *t, const Grid *g) {
+  if (tetromino_is_valid(t, g, t->row + 1, t->col, t->rotation)) {
     t->row++;
+    return 1;
+  }
+  return 0;
 }
 void tetromino_rotate(Tetromino *t, const Grid *g) {
   int next_rot = (t->rotation + 1) % NUM_ROTATIONS;
@@ -137,6 +140,20 @@ void tetromino_rotate(Tetromino *t, const Grid *g) {
       t->col      += kicks[i];
       t->rotation  = next_rot;
       return;
+    }
+  }
+}
+
+void tetromino_lock(const Tetromino *t, Grid *g) {
+  for (int r = 0; r < PIECE_SIZE; r++) {
+    for (int c = 0; c < PIECE_SIZE; c++) {
+      if (!PIECES[t->piece_idx][t->rotation][r][c])
+        continue;
+      int gr = t->row + r;
+      int gc = t->col + c;
+
+      if (gr >= 0 && gr < GRID_ROWS && gc >= 0 && gc < GRID_COLS)
+        g->cells[gr][gc] = t->piece_idx + 1;
     }
   }
 }

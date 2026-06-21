@@ -25,6 +25,7 @@ int tetromino_is_valid(const Tetromino *t, const Grid *g,
     int row, int col, int rotation);
 void tetromino_move_left  (Tetromino *t, const Grid *g);
 void tetromino_move_right (Tetromino *t, const Grid *g);
-void tetromino_move_down  (Tetromino *t, const Grid *g);
+int tetromino_move_down  (Tetromino *t, const Grid *g);
 void tetromino_rotate     (Tetromino *t, const Grid *g);
+void tetromino_lock       (const Tetromino *t, Grid *g);
 #endif //TETROMINO_H
